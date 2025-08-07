@@ -1,0 +1,6 @@
+{
+    "editor.minimap.renderCharacters": false,
+    "editor.minimap.scale": 2,
+    "editor.minimap.maxColumn": 80,
+    "editor.minimap.autohide": false
+}

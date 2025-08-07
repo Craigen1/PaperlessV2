@@ -1,0 +1,58 @@
+.tailLeft::after {
+    content: " x";
+    color: transparent;
+    height: 2px;
+    width: 60px;
+    position: absolute;
+    margin-left: 100%;
+    margin-top: -68px;
+    background-color: black;
+}
+
+.tailLeft2::after {
+    content: "";
+    color: transparent;
+    height: 2px;
+    width: 60px;
+    position: absolute;
+    margin-left: 100%;
+    margin-top: -23px;
+    background-color: black;
+}
+
+.tailLeft3::after {
+    content: "";
+    color: transparent;
+    height: 2px;
+    width: 60px;
+    position: absolute;
+    margin-left: 100%;
+    margin-top: -20px;
+    background-color: black;
+} 
+
+.TailOr::after {
+    content: " or ";
+    text-align: center;
+    color: black; 
+}
+
+.boxpos1{
+    margin-left: 50px;
+}
+
+.boxpos2 {
+    margin-left: 50px;
+    margin-top: 30px;
+
+}
+
+.boxpos3 {
+    margin-left: 50px;
+    margin-top: 28px;
+}
+
+.boxpos4 {
+    margin-left: 50px;
+    margin-top: 28px;
+}
