@@ -6,6 +6,7 @@ import {
   Routes,
   Route,
   UNSAFE_NavigationContext as NavigationContext,
+  useLocation,
 } from "react-router-dom";
 import { useContext, useEffect, useState } from "react";
 import { PopBox } from "./PopBox";
@@ -30,6 +31,7 @@ import ReportMain from "./Reports/ReportMain";
 import GoodsIssueTest from "./GoodsIssueTest";
 import DM_API from "./API/DM_API";
 import ProjectsMain from "./ProjectAPIview/Project/ProjectListMain.js";
+import LoginWrapperMJ from "./RFPtoAP_MJ/LoginWrapperMJ.js";
 
 export default function AppIndex() {
   const { navigator } = useContext(NavigationContext);
@@ -61,6 +63,7 @@ export default function AppIndex() {
         <Route path="/LicenseRequest" element={<ILicenseRequest />} />
         <Route path="/DMF_API" element={<DM_API />} />
         <Route path="/QueryManager" element={<IQuery />} />
+        <Route path="/RFPApproval" element={<IRFPApproval />} />
       </Routes>
 
       {loading && (
@@ -95,6 +98,10 @@ function IQuery() {
 
 function ILicenseRequest() {
   return <LicenseRequest />;
+}
+
+function IRFPApproval() {
+  return <LoginWrapperMJ />;
 }
 
 function IWhatsNew() {

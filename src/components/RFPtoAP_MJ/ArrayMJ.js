@@ -72,51 +72,79 @@ export const ApproverMgr = [
     name: "Herbert Parungao",
     code: "hjparungao",
     id: 1,
+    uId: 1,
   },
   {
     name: "Laiza Dominguez",
     code: "laiza.cuadra",
     id: 2,
+    uId: 1,
   },
   {
     name: "Jonathan Angeles",
     code: "jangeles",
     id: 3,
+    uId: 1,
   },
   {
     name: "Rhodette Austria",
     code: "raustria",
     id: 4,
+    uId: 1,
   },
   {
     name: "Jun Paculba",
     code: "jpaculba",
     id: 5,
+    uId: 1,
   },
   {
     name: "Julie Ann Ballesteros",
     code: "julieann.ballesteros",
     id: 6,
+    uId: 1,
   },
   {
     name: "Cristina Noriega",
     code: "cnoriega",
     id: 7,
+    uId: 1,
   },
   {
     name: "Aileen Javate",
     code: "ajavate",
     id: 8,
+    uId: 1,
   },
   {
     name: "Arth Kenneth Llantos",
     code: "akllantos",
     id: 9,
+    uId: 1,
   },
   {
     name: "Christiane De Vera",
     code: "cdevera",
     id: 10,
+    uId: 1,
+  },
+  {
+    name: "Hanzel Muñoz",
+    code: "hmunoz",
+    id: 11,
+    uId: 1,
+  },
+  {
+    name: "Jethro Rojales",
+    code: "jrojales",
+    id: 12,
+    uId: 1,
+  },
+  {
+    name: "Michelle Illescas",
+    code: "millescas",
+    id: 13,
+    uId: 1,
   },
 ];
 
@@ -174,7 +202,7 @@ export const header = [
     subArr: Branches,
   },
   {
-    label: "SI No.",
+    label: "Document Ref. No.",
     name: "sInum",
     id: "sInum",
     type: "text",

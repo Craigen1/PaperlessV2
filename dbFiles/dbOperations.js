@@ -80,76 +80,83 @@ AND A.U_MnfDate IN (${BODY.map((code) => `'${code.mnfDate}'`).join(", ")})`);
 };
 
 const batchSelection_MJ = async (BODY) => {
-  let pool = await sqlConnectionToDB.connect(config);
   console.log("BatchSelection_MJ:", BODY);
-  let query = await pool.request().query(
-    `SELECT 
-    D.ItemCode,
-    A.BatchNum,
-    D.UomCode,
-    D.UomEntry,
-    A.Quantity,
-    A.ItemName,
-    E.U_DPUR,
-    A.WhsCode,
-    D.BaseCard,
-    E.U_MnfDate
-FROM 
-    SAPMain.dbo.OIBT A
-LEFT JOIN 
-    SAPMain.dbo.OITM C ON C.ItemCode = A.ItemCode
-LEFT JOIN 
-    SAPMain.dbo.DLN1 D ON D.ItemCode = A.ItemCode
-LEFT JOIN 
-    SAPMain.dbo.IGN1 B ON B.ItemCode = A.ItemCode
-LEFT JOIN 
-    SAPMain.dbo.OIGN E ON E.DocEntry = B.DocEntry
-WHERE 
-    C.U_APP_ItemSGroup = 'DMPI'
-    AND A.Quantity >= 1
-    AND E.U_DPUR IS NOT NULL
-    AND A.WhsCode = 22220001
-    AND C.ItemCode IN (${BODY.map((code) => `'${code.itemCode}'`).join(", ")})
-    AND E.U_MnfDate IN (${BODY.map((code) => `'${code.mnfDate}'`).join(", ")})
-    AND (
-        ${BODY.map((code) => `A.BatchNum LIKE '${code.batchCode}%'`).join(
-          " OR "
-        )}
-    )
-    GROUP BY
-    D.ItemCode,
-    A.BatchNum,
-    D.UomCode,
-    D.UomEntry,
-    A.Quantity,
-    A.ItemName,
-    E.U_DPUR,
-    A.WhsCode,
-    D.BaseCard,
-    E.U_MnfDate
-  ORDER BY 
-    D.ItemCode,
-    A.BatchNum ASC;
-`
-  );
-  const recset2 = query.recordset;
-  const filteredBatches = recset2.filter((batch) =>
-    BODY.some((row) => {
-      const sapMnfDate = new Date(batch.U_MnfDate);
-      const sapBatchNum = batch.BatchNum.substring(0, 9);
-      const [month, day, year] = row.mnfDate
-        .split("/")
-        .map((part) => part.padStart(2, "0"));
-      const rowDate = `20${year}-${month}-${day}`;
-      return (
-        row.batchCode === sapBatchNum &&
-        rowDate === sapMnfDate.toISOString().substring(0, 10) &&
-        row.itemCode === batch.ItemCode
-      );
-    })
-  );
-  console.log("Filtered Batches:", filteredBatches);
-  return filteredBatches;
+  if (!BODY || BODY.length === 0) {
+    return [];
+  }
+  try {
+    let pool = await sqlConnectionToDB.connect(config);
+    let query = await pool.request().query(
+      `SELECT 
+      D.ItemCode,
+      A.BatchNum,
+      D.UomCode,
+      D.UomEntry,
+      A.Quantity,
+      A.ItemName,
+      E.U_DPUR,
+      A.WhsCode,
+      D.BaseCard,
+      E.U_MnfDate
+  FROM 
+      SAPMain.dbo.OIBT A
+  LEFT JOIN 
+      SAPMain.dbo.OITM C ON C.ItemCode = A.ItemCode
+  LEFT JOIN 
+      SAPMain.dbo.DLN1 D ON D.ItemCode = A.ItemCode
+  LEFT JOIN 
+      SAPMain.dbo.IGN1 B ON B.ItemCode = A.ItemCode
+  LEFT JOIN 
+      SAPMain.dbo.OIGN E ON E.DocEntry = B.DocEntry
+  WHERE 
+      C.U_APP_ItemSGroup = 'DMPI'
+      AND A.Quantity >= 1
+      AND E.U_DPUR IS NOT NULL
+      AND A.WhsCode = 22220001
+      AND C.ItemCode IN (${BODY.map((code) => `'${code.itemCode}'`).join(", ")})
+      AND E.U_MnfDate IN (${BODY.map((code) => `'${code.mnfDate}'`).join(", ")})
+      AND (
+          ${BODY.map((code) => `A.BatchNum LIKE '${code.batchCode}%'`).join(
+            " OR "
+          )}
+      )
+      GROUP BY
+      D.ItemCode,
+      A.BatchNum,
+      D.UomCode,
+      D.UomEntry,
+      A.Quantity,
+      A.ItemName,
+      E.U_DPUR,
+      A.WhsCode,
+      D.BaseCard,
+      E.U_MnfDate
+    ORDER BY 
+      D.ItemCode,
+      A.BatchNum ASC;
+  `
+    );
+    const recset2 = query.recordset;
+    const filteredBatches = recset2.filter((batch) =>
+      BODY.some((row) => {
+        const sapMnfDate = new Date(batch.U_MnfDate);
+        const sapBatchNum = batch.BatchNum.substring(0, 9);
+        const [month, day, year] = row.mnfDate
+          .split("/")
+          .map((part) => part.padStart(2, "0"));
+        const rowDate = `20${year}-${month}-${day}`;
+        return (
+          row.batchCode === sapBatchNum &&
+          rowDate === sapMnfDate.toISOString().substring(0, 10) &&
+          row.itemCode === batch.ItemCode
+        );
+      })
+    );
+    console.log("Filtered Batches:", filteredBatches);
+    return filteredBatches;
+  } catch (err) {
+    console.log(err);
+  }
 };
 
 const julianSelection_MJ = async (BODY) => {
@@ -387,10 +394,11 @@ const InsertORFP_MJ = async (e) => {
         sqlConnectionToDB.VarChar,
         e.modelORFP.oUserAccountName
       )
-      .input("SINo", sqlConnectionToDB.VarChar, e.modelORFP.oSINum).query(`
-        INSERT INTO ORFP (Branch, Remarks, Payee, ApproverEmail, UserAccountID, UserAccountName, SINo)
+      .input("SINo", sqlConnectionToDB.VarChar, e.modelORFP.oSINum)
+      .input("Token", sqlConnectionToDB.VarChar, e.token).query(`
+        INSERT INTO ORFP (Branch, Remarks, Payee, ApproverEmail, UserAccountID, UserAccountName, SINo, Token)
         OUTPUT INSERTED.RFPNo, INSERTED.RFPCode
-        VALUES (@Branch, @Remarks, @Payee, @ApproverEmail, @UserAccountID, @UserAccountName, @SINo)
+        VALUES (@Branch, @Remarks, @Payee, @ApproverEmail, @UserAccountID, @UserAccountName, @SINo, @Token)
       `);
 
     const { RFPNo, RFPCode } = insertORFPResult.recordset[0];
@@ -430,33 +438,237 @@ const InsertORFP_MJ = async (e) => {
   }
 };
 
+const pendingRFP = async (p) => {
+  try {
+    let pool = await sqlConnectionToDB.connect(config);
+    let pendingRFP = await pool.request().query(
+      `select
+A.DateCreated as DocDate,
+A.Payee as U_SupplierName,
+A.Decision,
+A.RFPCode,
+A.Remarks,
+A.Branch as BPLName,
+A.SINo,
+sum(B.Amount) as 'Price',
+A.ApproverEmail,
+A.ApproverName,
+ (
+    SELECT 
+      B.ItemName as Dscription,
+      B.CostCenter as OcrCode2,
+      B.Section as OcrCode3,
+      B.AccountCode as AcctCode,
+      B.Amount as Price
+    FROM RFP1 B
+    WHERE B.RFPNo = A.RFPNo
+    FOR JSON PATH
+  ) AS ItemDetails
+      from ORFP A
+left join RFP1 B on A.RFPNo = B.RFPNo
+where A.Decision = 'Pending'
+AND A.RFPCode = '${p}'
+GROUP BY
+A.DateCreated,
+A.Payee,
+A.Decision,
+A.RFPCode,
+A.Remarks,
+A.Branch,
+A.SINo,
+A.RFPNo,
+A.ApproverEmail,
+A.ApproverName
+order by A.DateCreated DESC`
+    );
+
+    const pendingRFPRecSet = pendingRFP.recordset;
+    return pendingRFPRecSet;
+  } catch (err) {
+    console.log("GET Pending RFP", err);
+  }
+};
+
+const approvedRFP = async (p) => {
+  try {
+    let pool = await sqlConnectionToDB.connect(config);
+    let draftContent = await pool.request().query(
+      `select
+A.WddCode,
+A.DraftEntry,
+B.BPLName,
+B.Comments,
+A.ObjType,
+A.IsDraft,
+sum(D.Price) as Price,
+A.DocDate,
+A.Status,
+C.RFPCode,
+C.Decision,
+C.ApproverName,
+B.CardName,
+B.U_SupplierName,
+B.U_Remarks,
+(
+    SELECT 
+      D.Dscription,
+      D.OcrCode2,
+      D.OcrCode3,
+      D.AcctCode,
+      D.Price
+    FROM SAPMain.dbo.DRF1 D
+    left join SAPMain.dbo.ODRF E on D.DocEntry = E.DocEntry
+    WHERE E.NumAtCard = C.RFPCode COLLATE SQL_Latin1_General_CP850_CI_AS
+    FOR JSON PATH
+  ) AS ItemDetails
+from SAPMain.dbo.OWDD A
+left join SAPMain.dbo.ODRF B on A.DraftEntry = B.DocEntry
+left join SAPMain.dbo.DRF1 D on B.DocEntry = D.DocEntry
+left join ORFP C on B.NumAtCard = C.RFPCode COLLATE SQL_Latin1_General_CP850_CI_AS
+where A.ObjType = 18
+and A.OwnerID = 20
+and A.Status = 'W'
+and C.Decision = 'Approved'
+group by
+A.WddCode,
+A.DraftEntry,
+B.BPLName,
+B.Comments,
+A.ObjType,
+A.IsDraft,
+A.DocDate,
+A.Status,
+C.RFPCode,
+C.Decision,
+C.ApproverName,
+B.CardName,
+B.U_SupplierName,
+B.U_Remarks
+order by DraftEntry DESC`
+    );
+
+    const draftContentsRecSet = draftContent.recordset;
+    return draftContentsRecSet;
+  } catch (err) {
+    console.log("GET draftCode", err);
+  }
+};
+
 const GetRFPSMJ = async (p) => {
   try {
     let getData = await sqlConnectionToDB.connect(config);
     let getRFPS = await getData.request().query(`
-select top 5 
+select
 A.RFPCode,
 A.DateCreated,
 A.Payee,
 A.ApproverEmail,
+A.ApproverName,
 A.Remarks,
 A.Status,
 A.Decision,
+A.Token,
+A.RejectionRemarks,
+A.IsReceived,
 sum(B.Amount) as [Total]
 from ORFP A 
 left join RFP1 B on A.RFPNo = B.RFPNo
 where A.UserAccountID = ${p.userID}
+AND CAST(A.DateCreated AS DATE) >= '${p.fromDate}'
+AND CAST(A.DateCreated AS DATE) <= '${p.toDate}'
 group by
 A.RFPCode,
 A.DateCreated,
 A.Payee,
 A.ApproverEmail,
+A.ApproverName,
 A.Remarks,
 A.Status,
-A.Decision
+A.Decision,
+A.RejectionRemarks,
+A.IsReceived,
+A.Token
 order by A.RFPCode DESC
     `);
+    console.log(getRFPS.recordset);
     return getRFPS.recordset;
+  } catch (error) {
+    console.log(error);
+  }
+};
+
+const getAPDraftMJ = async (p) => {
+  const DB = "SAPMain.dbo.";
+  console.log("AP Draft MJ:", p);
+  const rfpCodes = Array.isArray(p.RFPCode?.RFPCode) ? p.RFPCode.RFPCode : [];
+  if (rfpCodes.length === 0) {
+    return { drafts: [], ovpmRecords: [] };
+  }
+
+  try {
+    let getData = await sqlConnectionToDB.connect(config);
+    const rfpCodesArray = rfpCodes
+      .map((code) => `'${code.replace(/'/g, "''")}'`)
+      .join(", ");
+
+    let getDraft = await getData.request().query(`
+    select top 5 C.DraftEntry,
+CASE 
+    WHEN C.Status = 'Y' THEN 'Approved'
+    WHEN C.Status = 'W' THEN 'Pending'
+    ELSE 'Rejected'
+END AS Status,
+A.DocDate,
+A.NumAtCard,
+A.U_SINo,
+A.U_Remarks
+from ${DB}ODRF A
+left join ${DB}DRF1 B on A.DocEntry = B.DocEntry
+left join ${DB}OWDD C on A.DocEntry = C.DraftEntry
+where C.OwnerID = 20
+and A.ObjType = '18'
+and A.NumAtCard IS NOT NULL
+ and A.NumAtCard IN (${rfpCodesArray})
+ORDER BY A.DocDate DESC
+        `);
+
+    let ovpmRecords = [];
+    if (p.RFPCode.length > 0) {
+      const rfpCodesOP = p.RFPCode.map(
+        (code) => `'${code.replace(/'/g, "''")}'`
+      ).join(", ");
+      let ovpmQuery = await getData.request().query(`
+    select
+C.DocEntry,
+F.DocNum,
+C.DocDate,
+C.NumAtCard,
+A.U_SINo,
+F.U_APP_CDateRel
+ from ${DB}ODRF A
+left join ${DB}DRF1 B on A.DocEntry = B.DocEntry
+left join ${DB}OPCH C on A.NumAtCard = C.NumAtCard and A.U_SINo = C.U_SINo
+left join ${DB}PCH1 D on C.DocEntry = D.DocEntry
+left join ${DB}VPM2 E on C.DocEntry = E.DocEntry
+left join ${DB}OVPM F on E.DocNum = F.DocEntry
+where A.NumAtCard IN (${rfpCodesOP})
+and A.ObjType = '18'
+and E.DocEntry IS NOT NULL
+GROUP BY
+C.DocEntry,
+F.DocNum,
+C.DocDate,
+C.NumAtCard,
+A.U_SINo,
+F.U_APP_CDateRel
+ORDER BY C.DocDate DESC
+        `);
+      ovpmRecords = ovpmQuery.recordset;
+    }
+    const drafts = getDraft.recordset;
+    console.log("OVPM", { ovpmRecords });
+    console.log("AP RECORDSET", { drafts });
+    return { drafts, ovpmRecords };
   } catch (error) {
     console.log(error);
   }
@@ -476,6 +688,24 @@ const UpdateORFPStatusMJ = async (p) => {
   }
 };
 
+const UpdateORFPisReceivedMJ = async (p) => {
+  console.log(p);
+  try {
+    let getData = await sqlConnectionToDB.connect(config);
+    let data = await getData.request().query(`
+    UPDATE ORFP
+    SET IsReceived = 1
+    OUTPUT 
+    INSERTED.RFPCode, INSERTED.IsReceived
+    WHERE RFPCode = '${p.RFPCode}';
+        `);
+    console.log(data.recordset[0]);
+    return data.recordset[0];
+  } catch (error) {
+    console.log(error);
+  }
+};
+
 const SaveMessageIdMJ = async (rfp, messageId) => {
   try {
     let getData = await sqlConnectionToDB.connect(config);
@@ -489,29 +719,126 @@ const SaveMessageIdMJ = async (rfp, messageId) => {
   }
 };
 
-const GetApproverMessageIdMJ = async (rfp) => {
+const GetApproverMessageIdMJ = async (rfpNum) => {
   try {
     let getData = await sqlConnectionToDB.connect(config);
     let getMessageId = await getData.request().query(`
-    Select MessageId, ApproverEmail, Decision from ORFP
-    WHERE RFPCode = '${rfp}';
-        `);
+    Select MessageId, ApproverEmail, Decision, Used, RFPCode, Token from ORFP
+    WHERE RFPCode = '${rfpNum}'`);
     return getMessageId.recordset;
   } catch (error) {
     console.log(error);
   }
 };
 
-const UpdateORFPDecisionMJ = async (rfp, decision) => {
+const costCenterListMJ = async () => {
+  const DB = "SAPMain.dbo.";
   try {
     let getData = await sqlConnectionToDB.connect(config);
-    await getData.request().query(`
-    UPDATE ORFP
-    SET Decision = '${decision}'
-    WHERE RFPCode = '${rfp}';
-        `);
+    let dimCode2Query = await getData.request().query(`
+      SELECT PrcCode as code, PrcName as id, CCTypeCode
+      FROM ${DB}OPRC
+      WHERE Active = 'Y'
+        AND DimCode = 2
+        AND prccode NOT LIKE '%[^0-9]%'
+    `);
+
+    let dimCode3Query = await getData.request().query(`
+      SELECT PrcCode as code, PrcName as id, CCTypeCode
+      FROM ${DB}OPRC
+      WHERE Active = 'Y'
+        AND DimCode = 3
+        AND prccode NOT LIKE '%[^0-9]%'
+    `);
+    const costCenterDim2 = dimCode2Query.recordset;
+    const costCenterDim3 = dimCode3Query.recordset;
+    return { costCenterDim2, costCenterDim3 };
   } catch (error) {
     console.log(error);
+    return { costCenterDim2: [], costCenterDim3: [] };
+  }
+};
+
+const UpdateORFPDecisionMJ = async (p) => {
+  const rejectionRemarks = p.decision === "Rejected" ? `${p.remarks}` : `NULL`;
+  try {
+    let getData = await sqlConnectionToDB.connect(config);
+    const result = await getData.request().query(`
+      UPDATE ORFP
+      SET 
+        Decision = '${p.decision}',
+        ApproverName = '${p.approverAccount}',
+        RejectionRemarks = '${rejectionRemarks}',
+        Used = 1
+      OUTPUT 
+        INSERTED.RFPCode, INSERTED.Decision, INSERTED.ApproverName, INSERTED.RejectionRemarks, INSERTED.Used
+      WHERE RFPCode = '${p.rfp}';
+    `);
+    console.log(result.recordset[0]);
+    return result.recordset[0];
+  } catch (error) {
+    console.log(error);
+  }
+};
+
+const checkMOQConsumablesMJ = async () => {
+  try {
+    let pool = await sqlConnectionToDB.connect(config);
+    let checkMOQ = await pool.request().query(
+      `select 
+A.ItemCode,
+A.ItemName,
+iif(A.ItmsGrpCod = 102, 'Consumables', 'Not Consumables') as 'Item Group',
+A.U_APP_ItemSGroup,
+B.OnHand,
+A.MinOrdrQty,
+B.WhsCode
+from TEST_1017.dbo.OITM A
+left join TEST_1017.dbo.OITW B on a.ItemCode = b.ItemCode
+where A.ItmsGrpCod = 102
+and A.validFor = 'Y'
+and (A.U_APP_Client IS NULL OR A.U_APP_Client <> 220) -- IPIC - VAL only
+and B.WhsCode = '90000001' -- Stockroom Warehouse
+and B.OnHand < A.MinOrdrQty
+and NOT EXISTS (
+select 1 from TEST_1017.dbo.OPRQ T0
+left join TEST_1017.dbo.PRQ1 T1 on T0.DocEntry = T1.DocEntry
+where T0.DocStatus = 'O'
+and T0.DocType = 'I'
+and T1.ItemCode = B.ItemCode
+)
+and NOT EXISTS (
+    select 1 from TEST_1017.dbo.OPOR P0
+    left join TEST_1017.dbo.POR1 P1 on P0.DocEntry = P1.DocEntry
+    where P0.DocStatus = 'O'
+    and P1.ItemCode = B.ItemCode
+    and P1.OpenQty > 0
+)
+order by A.ItemCode asc
+`
+    );
+    return checkMOQ.recordset;
+  } catch (err) {
+    console.log(err);
+  }
+};
+
+const checkInstockMJ = async () => {
+  try {
+    let pool = await sqlConnectionToDB.connect(config);
+    let checkInStock = await pool.request().query(
+      `select 
+ItemCode,
+WhsCode,
+OnHand
+from TEST_1017.dbo.OITW
+where ItemCode = 'COE0000001'
+and WhsCode = '90000001'
+`
+    );
+    return checkInStock.recordset;
+  } catch (err) {
+    console.log(err);
   }
 };
 
@@ -1022,4 +1349,11 @@ module.exports = {
   UpdateORFPDecisionMJ,
   SaveMessageIdMJ,
   GetApproverMessageIdMJ,
+  getAPDraftMJ,
+  pendingRFP,
+  approvedRFP,
+  checkMOQConsumablesMJ,
+  checkInstockMJ,
+  UpdateORFPisReceivedMJ,
+  costCenterListMJ,
 };

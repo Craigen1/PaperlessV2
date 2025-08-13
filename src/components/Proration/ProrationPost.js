@@ -43,23 +43,29 @@ export const ProrationPostLogin = async (
 
     if (d.SessionId != undefined) {
       msg("Login successful");
-      await Postp(
-        d.SessionId,
-        BOM,
-        MaterialUsage,
-        HeaderValues,
-        Variant,
-        userInfo,
-        DateNow,
-        setPostingLoading,
-        msg,
-        setWater,
-        draftNumber
-      );
+      try {
+        await Postp(
+          d.SessionId,
+          BOM,
+          MaterialUsage,
+          HeaderValues,
+          Variant,
+          userInfo,
+          DateNow,
+          setPostingLoading,
+          msg,
+          setWater,
+          draftNumber
+        );
+      } catch (err) {
+        console.log(err);
+        msg("Error while posting to SAP");
+      }
     }
   } catch (error) {
     console.log({ error });
     msg(JSON.stringify(error));
+  } finally {
     setPostingLoading(false);
   }
 };
@@ -156,6 +162,15 @@ export const Postp = async (
   setWater,
   draftNumber
 ) => {
+  const fetchWithTimeout = (url, options, timeout = 15000) => {
+    return Promise.race([
+      fetch(url, options),
+      new Promise((_, reject) =>
+        setTimeout(() => reject(new Error("Request timed out")), timeout)
+      ),
+    ]);
+  };
+
   console.log(HeaderValues);
   let xx = [];
   msg("Posting to SAP");
@@ -227,7 +242,7 @@ export const Postp = async (
 
   console.log({ jsonHeader });
   //return;
-  const req = await fetch("SERVERLAYER_POST_APIV4", {
+  const req = await fetchWithTimeout("SERVERLAYER_POST_APIV4", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",

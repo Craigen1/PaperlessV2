@@ -88,6 +88,11 @@ export default function UsermasterSapLicense(p) {
     { code: "OSHLCRM07", name: "OSH Marketing Staff", id: "78" },
     { code: "OSHLCRM08", name: "OSH Marketing Staff 2", id: "79" },
     { code: "OSHLCRM09", name: "OSH Export Manager", id: "80" },
+
+    { code: "OSHLCRM10", name: "OSH Sales Employee", id: "85" },
+    { code: "OSHLCRM11", name: "OSH Sales Employee 2", id: "87" },
+    { code: "OSHLCRM12", name: "OSH Sales Employee 3", id: "113" },
+    { code: "OSHLCRM13", name: "OSH Sales Employee 4", id: "114" },
     { code: "OSHLSC01", name: "OSH - Logistics Staff 1", id: "81" },
     { code: "OSHLSC02", name: "OSH - Logistics Staff 2", id: "82" },
 
@@ -97,7 +102,7 @@ export default function UsermasterSapLicense(p) {
     { code: "IPICLLOG52", name: "Planning AIS Staff", id: "98" },
     { code: "IPICLLOG53", name: "Purchasing 3 *", id: "99" },
     { code: "IPICLLOG54", name: "Materials Planner", id: "106" },
-    // { code: "IPICLLOG55", name: "IPICLLOG55", id: "100" },
+    { code: "IPICLLOG55", name: "IPICLLOG55", id: "100" },
     // { code: "IPICLLOG56", name: "IPICLLOG56", id: "101" },
     //  { code: "IPICLLOG57", name: "IPICLLOG57", id: "102" },
     // { code: "IPICLLOG58", name: "IPICLLOG58", id: "103" },

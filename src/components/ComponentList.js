@@ -724,6 +724,15 @@ export const solutions = [
     emoji: "🧾",
     id: 63,
   },
+  {
+    name: "Auto PR TEST",
+    description: "",
+    folder: "production",
+    href: "#",
+    icon: DocumentReportIcon,
+    emoji: "🧾",
+    id: 64,
+  },
 ];
 export const HandleItemRemove = async (e, set, get) => {
   const holderBom = get;
@@ -802,32 +811,33 @@ export const LabelWContent = (p) => {
 export const ToastNotificationMJ = ({ message, error }) => {
   const isSuccess = !!message;
   const text = isSuccess ? message : error;
-  const bgColor = isSuccess ? "#38A169" : "#E53E3E";
+
+  const bgColor = isSuccess ? "#10B981" : "#EF4444"; // Emerald for success, Red for error
   const iconPath = isSuccess ? "M5 13l4 4L19 7" : "M6 18L18 6M6 6l12 12";
+  const iconColor = "#ffffff";
 
   return (
     <div
-      className="fixed top-6 right-6 z-50"
+      className="fixed top-6 right-6 z-50 animate-slide-in"
       role="alert"
       aria-live="assertive"
     >
       <div
-        className="flex items-center justify-center gap-3 px-5 py-4 rounded-lg shadow-lg animate-fadeIn"
+        className="flex items-center gap-3 px-5 py-4 rounded-lg shadow-xl transition-all duration-300"
         style={{
           backgroundColor: bgColor,
-          color: "#ffffff",
-          minWidth: "200px",
-          maxWidth: "330px",
-          transition: "all 0.3s ease",
+          color: "#FFFFFF",
+          minWidth: "240px",
+          maxWidth: "340px",
         }}
       >
-        <div className="mt-0.5">
+        <div>
           <svg
             xmlns="http://www.w3.org/2000/svg"
-            className="w-5 h-5"
+            className="w-6 h-6"
             fill="none"
             viewBox="0 0 24 24"
-            stroke="currentColor"
+            stroke={iconColor}
           >
             <path
               strokeLinecap="round"
@@ -837,7 +847,7 @@ export const ToastNotificationMJ = ({ message, error }) => {
             />
           </svg>
         </div>
-        <p className="text-md font-medium leading-snug break-words">{text}</p>
+        <p className="text-sm font-medium leading-snug break-words">{text}</p>
       </div>
     </div>
   );

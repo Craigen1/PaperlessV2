@@ -138,11 +138,17 @@ module.exports = {
         T10: "#26253b",
       },
     },
-    // extend: {
-    //   colors: {
-    //     primary: "#000",
-    //   },
-    // },
+    extend: {
+      keyframes: {
+        slideIn: {
+          "0%": { opacity: 0, transform: "translateX(100%)" },
+          "100%": { opacity: 1, transform: "translateX(0)" },
+        },
+      },
+      animation: {
+        "slide-in": "slideIn 0.4s ease-out forwards",
+      },
+    },
   },
   daisyui: {
     themes: ["nord"],

@@ -106,6 +106,7 @@ import JeReversal from "./JE_Reversal/JeReversal";
 import ITR_ITReport from "./Reports/ITR_ITReport";
 import DRImport from "./DR_Import/DRImport";
 import { RFPHeaderMJ } from "./RFPtoAP_MJ/RFPHeaderMJ";
+import { AutoPRMJ_Header } from "./AutoPRMJ/AutoPRMJ_Header";
 export default function Home() {
   const [CodeCheck, setCodeCheck] = useState(false);
   const {
@@ -343,7 +344,7 @@ export default function Home() {
             {SelectedModule === 37 ? <InventoryPushMain /> : <></>}
             {SelectedModule === 38 ? <PalletingMain /> : <></>}
             {SelectedModule === 40 ? <InventoryFifo /> : <></>}
-            {/* {SelectedModule === 41 ? <PalletingOsh /> : <></>} */}
+            {SelectedModule === 41 ? <PalletingOsh /> : <></>}
             {SelectedModule === 42 ? <DR_PalletTag /> : <></>}
             {SelectedModule === 43 ? <InventoryCountUsr /> : <></>}
             {SelectedModule === 42 ? <DR_PalletTag /> : <></>}
@@ -366,6 +367,7 @@ export default function Home() {
             {SelectedModule === 61 ? <ITR_ITReport /> : <></>}
             {SelectedModule === 62 ? <DRImport /> : <></>}
             {SelectedModule === 63 ? <RFPHeaderMJ /> : <></>}
+            {SelectedModule === 64 ? <AutoPRMJ_Header /> : <></>}
             <br></br>
             <br></br>
             <br></br>

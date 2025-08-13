@@ -4,11 +4,24 @@ const express = require("express"),
   cors = require("cors");
 const Employee = require("./dbFiles/employee");
 const nodemailer = require("nodemailer");
+const crypto = require("crypto");
+const { user } = require("./dbFiles/dbConfig");
+const token = crypto.randomBytes(64).toString("hex");
 
 const API_PORT = process.env.PORT || 5000;
 const app = express();
 let client;
 let session;
+let userZimbra = "mjpena@innovativepkg.com.ph";
+let passZimbra = "MyPassword123456";
+let carbonCopy = [
+  "jpaculba@innovativepkg.com.ph",
+  "cnoriega@innovativepkg.com.ph",
+  "mljose@innovativepkg.com.ph",
+  "mfruamar@innovativepkg.com.ph",
+  "lesteban@innovativepkg.com.ph",
+  userZimbra,
+];
 app.use(express.json({ limit: "500mb" }));
 app.use(express.urlencoded({ extended: true, limit: "500mb" }));
 app.use((req, res, next) => {
@@ -21,11 +34,11 @@ app.use((req, res, next) => {
 });
 
 app.use((req, res, next) => {
-  res.setHeader("Access-Control-Allow-Origin", "https://10.50.79.52:3000");
+  res.setHeader("Access-Control-Allow-Origin", "https://10.10.11.134:8000");
   res.setHeader("Access-Control-Allow-Credentials", "true");
   res.setHeader(
     "Access-Control-Allow-Methods",
-    "GET,HEAD,OPTIONS,POST,PUT,DELETE"
+    "GET,HEAD,OPTIONS,POST,PATCH,PUT,DELETE"
   );
   res.setHeader(
     "Access-Control-Allow-Headers",
@@ -34,7 +47,7 @@ app.use((req, res, next) => {
 
   res.setTimeout(120000, function () {
     console.log("Request has timed out.");
-    res.send(408);
+    res.sendStatus(408);
   });
 
   next();
@@ -213,6 +226,105 @@ app.post("/DRContentsMJ", async (req, res) => {
   res.send(dr);
 });
 
+app.post("/pendingRFP", async (req, res) => {
+  const { rfpNum } = req.body;
+  const code = await dbOperations.pendingRFP(rfpNum);
+  console.log(code);
+  res.send(code);
+});
+
+app.get("/approvedRFP", async (req, res) => {
+  const code = await dbOperations.approvedRFP();
+  res.send(code);
+});
+
+app.post("/decisionRFP", async (req, res) => {
+  const decision = await dbOperations.UpdateORFPDecisionMJ(req.body);
+  res.send(decision);
+});
+
+app.post("/receivedMoney", async (req, res) => {
+  console.log(req.body);
+  const isReceived = await dbOperations.UpdateORFPisReceivedMJ(req.body);
+  res.send(isReceived);
+});
+
+app.post("/approveRequest", async (req, res) => {
+  try {
+    const { wddCode, payLoad, username, password } = req.body;
+    console.log("Approve Request:", wddCode, payLoad, username, password);
+
+    const loginResponse = await fetch(
+      "https://10.50.79.53:50000/b1s/v1/Login",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          UserName: `${username}`,
+          Password: `${password}`,
+          CompanyDB: "SAPMain",
+        }),
+      }
+    );
+
+    const loginData = await loginResponse.json();
+    console.log("SAP Session ID:", loginData.SessionId);
+    if (!loginData.SessionId) {
+      console.error("Unauthorized access/unable to login to SAP B1");
+      return res.status(400).json({
+        error: {
+          message:
+            "Access denied. You are not authorized to process this request.",
+        },
+      });
+    }
+
+    const endPoint = `https://10.50.79.53:50000/b1s/v1/ApprovalRequests(${wddCode})`;
+
+    const response = await fetch(endPoint, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+        Cookie: `B1SESSION=${loginData.SessionId}; ROUTEID=.node5`,
+      },
+      body: JSON.stringify(payLoad),
+    });
+
+    if (response.status !== 204) {
+      console.error("SAP B1 returned error status:", response.status);
+      return res.status(400).json({
+        error: {
+          message: "SAP B1 error",
+        },
+      });
+    }
+
+    const data = response.status;
+
+    console.log("Status", response.status);
+
+    res.json({
+      data,
+      message: `Successfully ${
+        payLoad.ApprovalRequestDecisions[0]?.Status === "ardNotApproved"
+          ? "Rejected"
+          : "Approved"
+      }. You can view it in SAP B1.`,
+    });
+  } catch (err) {
+    console.error("Server API Error:", err);
+    res.status(500).json({
+      error: {
+        message: "Server error",
+        detail: err.message,
+      },
+    });
+  }
+});
+
 app.post("/B1POST", async (req, res) => {
   try {
     let loginRaw = JSON.stringify({
@@ -270,195 +382,218 @@ app.post("/B1POST", async (req, res) => {
   }
 });
 
+app.get("/checkMOQ", async (req, res) => {
+  const moq = await dbOperations.checkMOQConsumablesMJ();
+  console.log("MOQ", moq);
+  res.send(moq);
+});
+
 app.post("/PostedAR_MJ", async (req, res) => {
   console.log(req.body);
   const SI = await dbOperations.PostedAR_MJ(req.body);
   res.send(SI);
 });
 
-app.get("/api/rfpstatus", async (req, res) => {
-  const { rfpNum, action } = req.query;
-  console.log({ rfpNum, action });
-  const newStatus = action === "Approved" ? "Approved" : "Rejected";
-  await dbOperations.UpdateORFPDecisionMJ(rfpNum, newStatus);
-
+app.post("/validateDraftMJ", async (req, res) => {
+  const { rfpNum } = req.body;
   const result = await dbOperations.GetApproverMessageIdMJ(rfpNum);
-  const { ApproverEmail, MessageId, Decision } = result[0];
-
-  console.log("Mess:", { ApproverEmail, MessageId, Decision });
-
-  const transporter = nodemailer.createTransport({
-    host: "mail.innovativepkg.com.ph",
-    port: 587,
-    secure: false,
-    auth: {
-      user: "mjpena@innovativepkg.com.ph ",
-      pass: "MyPassword123456",
-    },
-    tls: {
-      rejectUnauthorized: false,
-    },
-  });
-
-  const mailOptions = {
-    from: ApproverEmail,
-    to: "cnoriega@innovativepkg.com.ph",
-    cc: `${ApproverEmail}, jpaculba@innovativepkg.com.ph, cnoriega@innovativepkg.com.ph, mljose@innovativepkg.com.ph, mjpena@innovativepkg.com.ph`,
-    subject: `Re: Request for Payment: ${rfpNum}`,
-    html: `
-  <p>Good day!</p>
-  <p>Your Request for Payment (RFP) has been <strong>${Decision}</strong>.</p>
-  <p>If you have any questions, please feel free to reach out.</p>
-  <p>Thank you.</p>
-  <p><em>-- Paperless RFP Module</em></p>
-`,
-    headers: {
-      "In-Reply-To": MessageId,
-      References: MessageId,
-    },
-  };
-
-  try {
-    await transporter.sendMail(mailOptions);
-    res.send(`
-  <html>
-    <head>
-      <title>RFP Decision Received</title>
-      <style>
-        body {
-          font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-          background-color: #f3f4f6;
-          display: flex;
-          justify-content: center;
-          align-items: center;
-          height: 100vh;
-          margin: 0;
-        }
-        .card {
-          background-color: #ffffff;
-          padding: 40px 30px;
-          border-radius: 12px;
-          box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
-          text-align: center;
-          max-width: 400px;
-          width: 90%;
-        }
-        .card h2 {
-          color: ${Decision === "Rejected" ? "#DC2626" : "#16A34A"};
-          font-size: 24px;
-          margin-bottom: 16px;
-        }
-        .card p {
-          color: #4B5563;
-          font-size: 14px;
-          margin-top: 10px;
-        }
-        .icon {
-          font-size: 48px;
-          margin-bottom: 20px;
-        }
-      </style>
-    </head>
-    <body>
-      <div class="card">
-        <div class="icon">
-          ${Decision === "Rejected" ? "❌" : "✅"}
-        </div>
-        <h2>${rfpNum} has been ${Decision}!</h2>
-        <p>This response has been recorded successfully.</p>
-      </div>
-    </body>
-  </html>
-`);
-  } catch (err) {
-    console.error("Error sending threaded reply email", err);
-    res.status(500).send("Failed to send threaded reply.");
-  }
+  res.send(result);
 });
 
 app.post("/send-emailMJ", async (req, res) => {
-  const { email, rfpNum, requestor, forBranch, forRemarks, sINumber } =
+  const { email, rfpNum, requestor, forBranch, forRemarks, approverName } =
     req.body;
+  console.log("SERVER RFPNUM:", rfpNum);
   console.log("SERVER EMAIL:", email);
 
-  const encodedRfpNum = encodeURIComponent(rfpNum.RFPCode);
-  const approveLink = `http://10.50.79.52:5000/api/rfpstatus?rfpNum=${encodedRfpNum}&action=Approved`;
-  const rejectLink = `http://10.50.79.52:5000/api/rfpstatus?rfpNum=${encodedRfpNum}&action=Rejected`;
+  if (!rfpNum) {
+    return res.status(400).json({ error: "rfpNum is required." });
+  }
+
+  const result = await dbOperations.GetApproverMessageIdMJ(rfpNum);
+  const { Token } = result[0];
+
+  const encodedRfpNum = encodeURIComponent(rfpNum);
+  const acctngLink = `https://10.10.10.211:8080/RFPApproval`;
+  const approvalLink = `https://10.10.10.211:8080/RFPApproval?rfpNum=${encodedRfpNum}&token=${Token}&approverEmail=${email}@innovativepkg.com.ph`;
+
   const transporter = nodemailer.createTransport({
     host: "mail.innovativepkg.com.ph",
     port: 587,
     secure: false,
     auth: {
-      user: "mjpena@innovativepkg.com.ph ",
-      pass: "MyPassword123456",
+      user: userZimbra,
+      pass: passZimbra,
     },
     tls: {
       rejectUnauthorized: false,
     },
   });
   const mailOptions = {
-    from: '"Paperless RFP" <mjpena@innovativepkg.com.ph>',
+    from: `"Paperless RFP" <ict@innovativepkg.com.ph>`,
     to: email + "@innovativepkg.com.ph",
-    cc: "jpaculba@innovativepkg.com.ph, cnoriega@innovativepkg.com.ph, mljose@innovativepkg.com.ph, mjpena@innovativepkg.com.ph",
+    // cc: carbonCopy,
+    // cc: "mjpena@innovativepkg.com.ph",
     subject: "Request for Payment",
     html: `
-  <p>Good day!</p>
-  <p>You have a pending <strong>Request for Payment</strong> (${rfpNum.RFPCode}) with ${sINumber} awaiting your approval.</p>
-  <p>Requestor: ${requestor}</p>
-  <p>Branch: ${forBranch}</p>
-  <p>Remarks: ${forRemarks}</p>
-   <p style="text-align: center; margin-top: 20px;">
-  <a href="${approveLink}" 
-     style="
-       display: inline-block;
-       padding: 10px 24px;
-       margin-right: 12px;
-       background-color: #38A169;
-       color: #fff;
-       font-weight: 600;
-       text-decoration: none;
-       border-radius: 6px;
-       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-       box-shadow: 0 4px 8px rgba(56, 161, 105, 0.3);
-       transition: background-color 0.3s ease;
-     "
-     onmouseover="this.style.backgroundColor='#2F855A';"
-     onmouseout="this.style.backgroundColor='#38A169';"
-  >
-    ✅ Approve
-  </a>
-  <a href="${rejectLink}" 
-     style="
-       display: inline-block;
-       padding: 10px 24px;
-       background-color: #E53E3E;
-       color: #fff;
-       font-weight: 600;
-       text-decoration: none;
-       border-radius: 6px;
-       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-       box-shadow: 0 4px 8px rgba(229, 62, 62, 0.3);
-       transition: background-color 0.3s ease;
-     "
-     onmouseover="this.style.backgroundColor='#C53030';"
-     onmouseout="this.style.backgroundColor='#E53E3E';"
-  >
-    ❌ Reject
-  </a>
-</p>
-  <p>Thank you.</p>
+  <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; font-size: 15px; color: #2d3748; line-height: 1.6;">
+    <p style="margin-bottom: 16px;">
+      Dear <strong style="color: #1a202c;">${
+        approverName ? approverName : email
+      }</strong>,
+    </p>
+
+    <p style="margin-bottom: 16px;">
+      A <strong>Request for Payment</strong> (<strong>${rfpNum}</strong>) is currently pending your approval.
+    </p>
+
+    <p><strong>Requestor:</strong> ${requestor}</p>
+    <p><strong>Branch:</strong> ${forBranch}</p>
+    <p><strong>Remarks:</strong> ${forRemarks}</p>
+
+    <div style="text-align: left; margin: 10px 0;">
+      <a href="${approvalLink}" target="_blank" style="color: #2F855A; text-decoration: underline;">
+        Approval Link
+      </a>
+    </div>
+
+    <p style="margin-top: 24px;">
+      If you have any questions, please contact the requestor directly.
+    </p>
+
+    <p style="margin-top: 16px;">
+      Regards,<br>
+      <strong>
+        <a href="${acctngLink}" target="_blank" style="color: #2F855A;">
+        Finance RFP Automation
+      </a>
+      </strong>
+    </p>
+  </div>
 `,
   };
 
   try {
     let info = await transporter.sendMail(mailOptions);
     const messageId = info.messageId;
-    await dbOperations.SaveMessageIdMJ(rfpNum.RFPCode, messageId);
+    await dbOperations.SaveMessageIdMJ(rfpNum, messageId);
     console.log("Email sent:", info.response);
     res.status(200).json({ message: "Email sent successfully!", messageId });
   } catch (error) {
     console.error("Error sending email:", error);
     res.status(500).json({ error: "Failed to send email." });
+  }
+});
+
+app.post("/rfpApprovedNotif", async (req, res) => {
+  const { decision, rfp, approverAccount } = req.body;
+  const acctngLink = `https://10.10.10.211:8080/RFPApproval`;
+  try {
+    const result = await dbOperations.GetApproverMessageIdMJ(rfp);
+
+    if (!result || result.length === 0) {
+      return res.status(404).send("Original message not found.");
+    }
+
+    const { ApproverEmail, MessageId, Decision } = result[0];
+    console.log("Message Info:", { ApproverEmail, MessageId, Decision });
+
+    const transporter = nodemailer.createTransport({
+      host: "mail.innovativepkg.com.ph",
+      port: 587,
+      secure: false,
+      auth: {
+        user: userZimbra,
+        pass: passZimbra,
+      },
+      tls: {
+        rejectUnauthorized: false,
+      },
+    });
+
+    const mailOptions = {
+      from: ApproverEmail,
+      to: "cnoriega@innovativepkg.com.ph",
+      cc: `${carbonCopy}, ${ApproverEmail}`,
+      subject: `Re: Request for Payment: ${rfp}`,
+      html: `
+        <p>Good day Accounting Team!</p>
+        <p>Request for Payment ${rfp} has been <strong>${decision}</strong>.</p>
+        ${
+          approverAccount
+            ? `<p><strong>Approved by:</strong> ${approverAccount}</p>`
+            : ""
+        }
+        <p>Thank you.</p>
+            <p style="margin-top: 16px;">
+        <a href="${acctngLink}" target="_blank" style="color: #2F855A; text-decoration: underline;">
+        Approval Decision Link
+      </a>
+   
+    </p>
+        <p><em>-- Paperless RFP Module</em></p>
+      `,
+      headers: {
+        "In-Reply-To": MessageId,
+        References: MessageId,
+      },
+    };
+
+    await transporter.sendMail(mailOptions);
+
+    res.send(`
+      <html>
+        <head>
+          <title>RFP Decision Sent</title>
+          <style>
+            body {
+              font-family: 'Segoe UI', sans-serif;
+              background-color: #f3f4f6;
+              display: flex;
+              justify-content: center;
+              align-items: center;
+              height: 100vh;
+              margin: 0;
+            }
+            .card {
+              background-color: #ffffff;
+              padding: 40px 30px;
+              border-radius: 12px;
+              box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+              text-align: center;
+              max-width: 400px;
+              width: 90%;
+            }
+            .card h2 {
+              color: ${Decision === "Rejected" ? "#DC2626" : "#16A34A"};
+              font-size: 24px;
+              margin-bottom: 16px;
+            }
+            .card p {
+              color: #4B5563;
+              font-size: 14px;
+              margin-top: 10px;
+            }
+            .icon {
+              font-size: 48px;
+              margin-bottom: 20px;
+            }
+          </style>
+        </head>
+        <body>
+          <div class="card">
+            <div class="icon">
+              ${Decision === "Rejected" ? "❌" : "✅"}
+            </div>
+            <h2>${rfp} has been ${Decision}!</h2>
+            <p>This response has been recorded and the reply email was sent successfully.</p>
+          </div>
+        </body>
+      </html>
+    `);
+  } catch (err) {
+    console.error("Error sending threaded reply email:", err);
+    res.status(500).send("Failed to send threaded reply.");
   }
 });
 
@@ -468,9 +603,18 @@ app.post("/rfpsMJ", async (req, res) => {
   res.send(getRFPS);
 });
 
+app.get("/cost-sectionMJ", async (req, res) => {
+  const getCostSection = await dbOperations.costCenterListMJ();
+  res.send(getCostSection);
+});
+
 app.post("/ORFPMJ", async (req, res) => {
   console.log("SERVER:", req.body);
-  const exec = await dbOperations.InsertORFP_MJ(req.body);
+  const exec = await dbOperations.InsertORFP_MJ({
+    modelORFP: req.body.modelORFP,
+    modelRFP1: req.body.modelRFP1,
+    token,
+  });
   console.log("RFP#", exec.RFPCode);
   res.send(exec).end();
 });
@@ -478,6 +622,11 @@ app.post("/ORFPMJ", async (req, res) => {
 app.post("/updateStatusMJ", async (req, res) => {
   console.log("Update", req.body);
   const exec = await dbOperations.UpdateORFPStatusMJ(req.body);
+  res.send(exec).end();
+});
+
+app.post("/getAPDraftMJ", async (req, res) => {
+  const exec = await dbOperations.getAPDraftMJ(req.body);
   res.send(exec).end();
 });
 

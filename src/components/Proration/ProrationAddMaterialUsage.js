@@ -143,11 +143,13 @@ export default function ProrationAddMaterialUsage(p) {
     setBatchDitsLoading(false);
   };
   useEffect(() => {
-    let totalSelected = 0;
-    batchInfo.forEach((item) => {
-      totalSelected += parseFloat(item.Selected || 0);
-    });
-    setASDAX(totalSelected);
+    if (Array.isArray(batchInfo)) {
+      let totalSelected = 0;
+      batchInfo.forEach((item) => {
+        totalSelected += parseFloat(item.Selected || 0);
+      });
+      setASDAX(totalSelected);
+    }
   }, [batchInfo]);
 
   /*
@@ -193,7 +195,8 @@ export default function ProrationAddMaterialUsage(p) {
     const newBatchInfo = batchInfo.map((item, index) =>
       index === parseFloat(id) ? { ...item, Selected: newValue } : item
     );
-    setBatchInfo(newBatchInfo);
+    // setBatchInfo(newBatchInfo);
+    setBatchInfo(Array.isArray(newBatchInfo) ? newBatchInfo : []);
   };
   const iCheckBoxHandler = (e) => {
     const { value, id } = e.target;
@@ -214,15 +217,18 @@ export default function ProrationAddMaterialUsage(p) {
         ? { ...item, Selected: newValue.toFixed(3) }
         : item
     );
-    setBatchInfo(newBatchInfo);
+    // setBatchInfo(newBatchInfo);
+    setBatchInfo(Array.isArray(newBatchInfo) ? newBatchInfo : []);
   };
 
   useEffect(() => {
-    let totalSelected = 0;
-    batchInfo.forEach((item) => {
-      totalSelected += parseFloat(item.Selected || 0); // Ensure you have a fallback value
-    });
-    setASDAX(totalSelected);
+    if (Array.isArray(batchInfo)) {
+      let totalSelected = 0;
+      batchInfo.forEach((item) => {
+        totalSelected += parseFloat(item.Selected || 0); // Ensure you have a fallback value
+      });
+      setASDAX(totalSelected);
+    }
   }, [batchInfo]);
 
   /* NEVER CHANGE THIS HSIT */
@@ -508,48 +514,51 @@ export default function ProrationAddMaterialUsage(p) {
                       <td>Draft Qty</td>
                       <td>Draft Batch</td>
                     </tr>
-                    {batchInfo.map((e, i) => (
-                      <tr className="border">
-                        <td className=" sticky px-2 whitespace-nowrap">
-                          <input
-                            type="checkbox"
-                            onChange={iCheckBoxHandler}
-                            max={e.Quantity}
-                            id={i}
-                          />
-                        </td>{" "}
-                        <td className=" sticky px-2 whitespace-nowrap">
-                          {e.BatchNum}
-                        </td>
-                        <td className=" sticky px-2 whitespace-nowrap">
-                          {e.Quantity}
-                        </td>
-                        <td className="px-2 whitespace-nowrap">
-                          <input
-                            className="w-[60px]"
-                            // max={e.Quantity}
-                            min={0}
-                            type="number"
-                            id={i}
-                            value={batchInfo[i].Selected}
-                            onChange={is0Calculator}
-                            onPaste={(e) => {
-                              handlePaste(i);
-                            }}
-                          />
-                        </td>
-                        <td className="px-2 whitespace-nowrap">{e.PrdDate}</td>
-                        <td className="px-2 whitespace-nowrap w-full">
-                          {e.ExpDate}
-                        </td>
-                        <td className="px-2 whitespace-nowrap w-full">
-                          {e.actual}
-                        </td>
-                        <td className="px-2 whitespace-nowrap w-full">
-                          {e.batch}
-                        </td>
-                      </tr>
-                    ))}
+                    {Array.isArray(batchInfo) &&
+                      batchInfo.map((e, i) => (
+                        <tr className="border">
+                          <td className=" sticky px-2 whitespace-nowrap">
+                            <input
+                              type="checkbox"
+                              onChange={iCheckBoxHandler}
+                              max={e.Quantity}
+                              id={i}
+                            />
+                          </td>{" "}
+                          <td className=" sticky px-2 whitespace-nowrap">
+                            {e.BatchNum}
+                          </td>
+                          <td className=" sticky px-2 whitespace-nowrap">
+                            {e.Quantity}
+                          </td>
+                          <td className="px-2 whitespace-nowrap">
+                            <input
+                              className="w-[60px]"
+                              // max={e.Quantity}
+                              min={0}
+                              type="number"
+                              id={i}
+                              value={batchInfo[i].Selected}
+                              onChange={is0Calculator}
+                              onPaste={(e) => {
+                                handlePaste(i);
+                              }}
+                            />
+                          </td>
+                          <td className="px-2 whitespace-nowrap">
+                            {e.PrdDate}
+                          </td>
+                          <td className="px-2 whitespace-nowrap w-full">
+                            {e.ExpDate}
+                          </td>
+                          <td className="px-2 whitespace-nowrap w-full">
+                            {e.actual}
+                          </td>
+                          <td className="px-2 whitespace-nowrap w-full">
+                            {e.batch}
+                          </td>
+                        </tr>
+                      ))}
                     {batchInfo.length == 0 && "No record found!"}
                   </table>
                   {(parseFloat(selectedRow.Actual) - parseFloat(ASDAX)).toFixed(
